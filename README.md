@@ -38,8 +38,8 @@ The portal aims to reduce administrative overhead and enhance user experience fo
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/yourusername/academic-portal.git
-   cd academic-portal
+   git clone https://github.com/Ashutosh6294389/Aims-Portal-IIT-Ropar
+   cd MICRO-AIMS-PORTAL-MAIN
 2. **Create the Virtual Environment
    ```bash
    python3 -m venv venv
