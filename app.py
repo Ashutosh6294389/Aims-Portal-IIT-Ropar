@@ -5,17 +5,28 @@ from functools import wraps
 import random
 from datetime import datetime
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://ashutosh:12345@localhost:5432/mydatabase'
-db = SQLAlchemy(app)
-app.secret_key = 'secret_key'
+import os
+from secrets import token_hex, randbelow
 
-# Flask-Mail Configuration
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'johnDoe18262117@gmail.com'  
-app.config['MAIL_PASSWORD'] = 'avsj hgzp mxfc yxxz'  
+app = Flask(__name__)
+
+# Production configuration: set these values in Vercel Environment Variables.
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or token_hex(32)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', '').replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+if not app.config['SQLALCHEMY_DATABASE_URI']:
+    raise RuntimeError('DATABASE_URL environment variable is not set.')
+
+db = SQLAlchemy(app)
+
+# Flask-Mail Configuration (credentials must be set as environment variables)
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', '587'))
+app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
+app.config['MAIL_USE_SSL'] = os.environ.get('MAIL_USE_SSL', 'false').lower() == 'true'
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
 mail = Mail(app)
 
 class Student(db.Model):
@@ -82,8 +93,8 @@ class Enrollment(db.Model):
     def __repr__(self):
         return f"<Enrollment {self.id} - Course: {self.course_id}, Student: {self.student_email}>"
 
-with app.app_context():
-    db.create_all()
+# Do not create database tables at import time on serverless deployments.
+# Run the separate init_db.py script once against your hosted PostgreSQL database.
 
 def login_required(role=None):
     def decorator(f):
@@ -170,7 +181,7 @@ def student_register():
                 flash('Email already registered.', 'danger')
                 return redirect('/student_register')
 
-            otp = str(random.randint(100000, 999999))
+            otp = str(randbelow(900000) + 100000)
             session['student_registration_otp'] = otp
             session['student_registration_otp_sent'] = True
             session['student_registration_data'] = {
@@ -363,7 +374,7 @@ def instructor_register():
                 flash('Email already registered.', 'danger')
                 return redirect('/instructor_register')
 
-            otp = str(random.randint(100000, 999999))
+            otp = str(randbelow(900000) + 100000)
             session['instructor_registration_otp'] = otp
             session['instructor_registration_otp_sent'] = True
             session['instructor_registration_data'] = {
@@ -572,7 +583,7 @@ def admin_login():
             user = Admin.query.filter_by(email=email).first()
             if user and user.password == password:
                 # Generate OTP and store it in the session
-                otp = str(random.randint(100000, 999999))
+                otp = str(randbelow(900000) + 100000)
                 session['admin_login_otp'] = otp
                 session['admin_login_otp_sent'] = True
                 session['admin_login_email'] = email
@@ -705,4 +716,4 @@ def admin_logout():
     return redirect('/')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=os.environ.get('FLASK_DEBUG', 'false').lower() == 'true')
